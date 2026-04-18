@@ -1,0 +1,6 @@
+{
+  "name": "Knowledge Hub",
+  "description": "個人知識管理系統，支援模塊化管理、今日專注與技能儲存。",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
