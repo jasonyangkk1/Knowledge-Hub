@@ -18,7 +18,8 @@ import {
   Folder,
   FolderOpen,
   Copy,
-  CopyPlus
+  CopyPlus,
+  MoreVertical
 } from 'lucide-react';
 import { KnowledgeItem, ItemStatus, ItemType, STATUS_CONFIG, TYPE_CONFIG } from './types';
 
@@ -144,6 +145,12 @@ export default function App() {
     setIsModalOpen(true);
   };
 
+  const handleAddSubItem = (parentId: string) => {
+    setEditingItem(null);
+    setFormData({ title: '', type: 'skill', status: 'idle', tags: '', isGroup: false, parentId });
+    setIsModalOpen(true);
+  };
+
   const handleEditItem = (item: KnowledgeItem) => {
     setEditingItem(item);
     setFormData({
@@ -180,7 +187,7 @@ export default function App() {
         status: formData.status,
         tags,
         isToday: activeTab === 'today',
-        isSkill: activeTab === 'skills' || formData.isGroup,
+        isSkill: activeTab === 'skills',
         isGroup: formData.isGroup,
         parentId: formData.parentId || undefined,
         createdAt: Date.now()
@@ -310,7 +317,7 @@ export default function App() {
             >
               <div className="flex justify-between items-end mb-2">
                 <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest">今日專注</h2>
-                <span className="text-[10px] text-gray-400">點擊卡片切換狀態 • 左右滑動排序</span>
+                <span className="text-[10px] text-gray-400">左右滑動排序</span>
               </div>
 
               {todayItems.length > 0 ? (
@@ -331,9 +338,14 @@ export default function App() {
                       onArchive={() => moveToSkills(item.id)}
                       onRemove={() => toggleToday(item.id)}
                       onDelete={() => deleteItem(item.id)}
+                      onAddSubItem={handleAddSubItem}
                       onCopyToLibrary={() => copyItemToLibrary(item)}
                       onEditChild={handleEditItem}
                       onDeleteChild={deleteItem}
+                      onArchiveChild={moveToSkills}
+                      onRemoveChild={toggleToday}
+                      onCopyToLibraryChild={copyItemToLibrary}
+                      onCopyToTodayChild={copyItemToToday}
                       allItems={items}
                     />
                   ))}
@@ -387,8 +399,13 @@ export default function App() {
                     onCopyToToday={() => copyItemToToday(item)}
                     onCopyToLibrary={() => copyItemToLibrary(item)}
                     onDelete={() => deleteItem(item.id)}
+                    onAddSubItem={handleAddSubItem}
                     onEditChild={handleEditItem}
                     onDeleteChild={deleteItem}
+                    onToggleTodayChild={toggleToday}
+                    onArchiveChild={moveToSkills}
+                    onCopyToTodayChild={copyItemToToday}
+                    onCopyToLibraryChild={copyItemToLibrary}
                     allItems={items}
                   />
                 ))}
@@ -418,8 +435,11 @@ export default function App() {
                     onRestore={() => restoreFromSkills(item.id)}
                     onDelete={() => deleteItem(item.id)}
                     onCopyToLibrary={() => copyItemToLibrary(item)}
+                    onAddSubItem={handleAddSubItem}
                     onEditChild={handleEditItem}
                     onDeleteChild={deleteItem}
+                    onRestoreChild={restoreFromSkills}
+                    onCopyToLibraryChild={copyItemToLibrary}
                     allItems={items}
                   />
                 )) : (
@@ -559,48 +579,186 @@ export default function App() {
 }
 
 // Helper for child items
-function ChildItemCard({ child, onEdit, onDelete }: { 
+function ChildItemCard({ 
+  child, onEdit, onDelete, onToggleToday, onArchive, onRestore, onCopyToLibrary, onCopyToToday, onAddSubItem,
+  allItems, onEditChild, onDeleteChild, onArchiveChild, onRemoveChild, onCopyToLibraryChild, onCopyToTodayChild, onRestoreChild
+}: { 
   child: KnowledgeItem, 
   onEdit: (i: KnowledgeItem) => void, 
   onDelete: (id: string) => void,
+  onToggleToday?: (id: string) => void,
+  onArchive?: (id: string) => void,
+  onRestore?: (id: string) => void,
+  onCopyToLibrary?: (item: KnowledgeItem) => void,
+  onCopyToToday?: (item: KnowledgeItem) => void,
+  onAddSubItem?: (parentId: string) => void,
+  allItems?: KnowledgeItem[],
+  onEditChild?: (i: KnowledgeItem) => void,
+  onDeleteChild?: (id: string) => void,
+  onArchiveChild?: (id: string) => void,
+  onRemoveChild?: (id: string) => void,
+  onRestoreChild?: (id: string) => void,
+  onCopyToLibraryChild?: (item: KnowledgeItem) => void,
+  onCopyToTodayChild?: (item: KnowledgeItem) => void,
   key?: string
 }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const children = allItems?.filter(i => i.parentId === child.id) || [];
+
+  const actions = [
+    { label: '編輯內容', icon: <Edit2 size={14} />, onClick: () => onEdit(child) },
+    ...(child.isGroup && onAddSubItem ? [{ label: '新增子項目', icon: <Plus size={14} />, onClick: () => onAddSubItem(child.id), color: 'text-green-600' }] : []),
+    ...(onToggleToday ? [{ label: child.isToday ? '移除今日標記' : '加入今日清單', icon: <Star size={14} />, onClick: () => onToggleToday(child.id), color: 'text-yellow-600' }] : []),
+    ...(onCopyToToday ? [{ label: '複製到今日', icon: <Copy size={14} />, onClick: () => onCopyToToday(child), color: 'text-black' }] : []),
+    ...(onArchive ? [{ label: '內化到技能庫', icon: <Archive size={14} />, onClick: () => onArchive(child.id), color: 'text-blue-600' }] : []),
+    ...(onRestore ? [{ label: '恢復至執行中', icon: <Archive size={14} />, onClick: () => onRestore(child.id), color: 'text-blue-600' }] : []),
+    ...(onCopyToLibrary ? [{ label: '建立副本', icon: <CopyPlus size={14} />, onClick: () => onCopyToLibrary(child), color: 'text-indigo-600' }] : []),
+    { label: '刪除項目', icon: <Trash2 size={14} />, onClick: () => onDelete(child.id), color: 'text-red-500' }
+  ];
+
   return (
-    <div className="flex items-center gap-3 p-3 bg-white border border-gray-100 rounded-2xl shadow-sm group/child">
-      <span className="text-xl">{TYPE_CONFIG[child.type]?.icon || '📦'}</span>
-      <span className="text-xs font-bold flex-1 truncate">{child.title}</span>
-      <div className="flex items-center gap-1 opacity-0 group-hover/child:opacity-100 transition-opacity">
-        <button 
-          onClick={(e) => { e.stopPropagation(); onEdit(child); }}
-          className="p-1.5 text-gray-400 hover:text-black hover:bg-gray-50 rounded-lg transition-colors"
-          title="編輯"
-        >
-          <Edit2 size={12} />
-        </button>
-        <button 
-          onClick={(e) => { e.stopPropagation(); onDelete(child.id); }}
-          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-          title="刪除"
-        >
-          <Trash2 size={12} />
-        </button>
+    <div className="bg-white border border-gray-100 rounded-2xl shadow-sm transition-all">
+      <div className="flex items-center gap-3 p-3 group/child">
+        <span className="text-xl">
+          {child.isGroup ? (isExpanded ? <FolderOpen size={16} className="text-blue-500" /> : <Folder size={16} className="text-blue-500" />) : TYPE_CONFIG[child.type]?.icon || '📦'}
+        </span>
+        <span className="text-xs font-bold flex-1 truncate">{child.title}</span>
+        
+        <div className="flex items-center gap-1 opacity-50 group-hover/child:opacity-100 transition-opacity">
+          {child.isGroup && (
+            <button 
+              onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }}
+              className="p-1.5 text-gray-400 hover:text-black transition-colors"
+            >
+              {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            </button>
+          )}
+          <ActionMenu actions={actions} />
+        </div>
+        
+        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border ${STATUS_CONFIG[child.status]?.color}`}>
+          {STATUS_CONFIG[child.status]?.label}
+        </span>
       </div>
-      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border ${STATUS_CONFIG[child.status]?.color}`}>
-        {STATUS_CONFIG[child.status]?.label}
-      </span>
+
+      <AnimatePresence>
+        {isExpanded && child.isGroup && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="bg-gray-50/30 border-t border-gray-50"
+          >
+            <div className="p-3 pl-8 space-y-2">
+              {children.map(c => (
+                <ChildItemCard 
+                  key={c.id} 
+                  child={c} 
+                  onEdit={onEditChild || onEdit} 
+                  onDelete={onDeleteChild || onDelete} 
+                  onToggleToday={onRemoveChild || onToggleToday}
+                  onArchive={onArchiveChild || onArchive}
+                  onRestore={onRestoreChild || onRestore}
+                  onCopyToLibrary={onCopyToLibraryChild || onCopyToLibrary}
+                  onCopyToToday={onCopyToTodayChild || onCopyToToday}
+                  onAddSubItem={onAddSubItem}
+                  allItems={allItems}
+                  onEditChild={onEditChild}
+                  onDeleteChild={onDeleteChild}
+                  onArchiveChild={onArchiveChild}
+                  onRemoveChild={onRemoveChild}
+                  onRestoreChild={onRestoreChild}
+                  onCopyToLibraryChild={onCopyToLibraryChild}
+                  onCopyToTodayChild={onCopyToTodayChild}
+                />
+              ))}
+              <button 
+                onClick={() => onAddSubItem && onAddSubItem(child.id)}
+                className="w-full py-1.5 border border-dashed border-gray-200 rounded-lg text-[9px] font-bold text-gray-400 hover:border-gray-400 hover:text-gray-600 transition-all flex items-center justify-center gap-1.5"
+              >
+                <Plus size={10} />
+                新增子項目
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// Action Menu Component for Cards
+function ActionMenu({ actions }: { 
+  actions: { label: string, icon: React.ReactNode, onClick: () => void, color?: string }[] 
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const menuRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div className={`relative ${isOpen ? 'z-[2000]' : 'z-auto'}`} ref={menuRef}>
+      <button 
+        onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
+        className="p-2 text-gray-400 hover:text-black hover:bg-gray-100 rounded-full transition-all"
+      >
+        <MoreVertical size={16} />
+      </button>
+      
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: -10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: -10 }}
+            className="absolute right-0 top-full mt-2 w-52 bg-white border border-gray-100 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] z-[2000] overflow-hidden backdrop-blur-sm"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="py-2 px-1">
+              {actions.map((action, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => { action.onClick(); setIsOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold transition-colors hover:bg-gray-50 ${action.color || 'text-gray-700'}`}
+                >
+                  <span className="opacity-70">{action.icon}</span>
+                  {action.label}
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
 // Sub-components
-function TodayCard({ item, onEdit, onArchive, onRemove, onDelete, onEditChild, onDeleteChild, onCopyToLibrary, allItems }: { 
+function TodayCard({ 
+  item, onEdit, onArchive, onRemove, onDelete, onAddSubItem,
+  onEditChild, onDeleteChild, onArchiveChild, onRemoveChild, onCopyToLibraryChild, onCopyToTodayChild,
+  onCopyToLibrary, allItems 
+}: { 
   item: KnowledgeItem, 
   onEdit: () => void, 
   onArchive: () => void,
   onRemove: () => void,
   onDelete: () => void,
+  onAddSubItem: (id: string) => void,
   onEditChild: (i: KnowledgeItem) => void,
   onDeleteChild: (id: string) => void,
+  onArchiveChild: (id: string) => void,
+  onRemoveChild: (id: string) => void,
+  onCopyToLibraryChild: (item: KnowledgeItem) => void,
+  onCopyToTodayChild: (item: KnowledgeItem) => void,
   onCopyToLibrary: () => void,
   allItems: KnowledgeItem[],
   key?: string
@@ -616,14 +774,14 @@ function TodayCard({ item, onEdit, onArchive, onRemove, onDelete, onEditChild, o
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
-      className="group relative bg-white border border-gray-200 rounded-[28px] overflow-hidden shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing"
+      className="group relative bg-white border border-gray-200 rounded-[28px] shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing"
     >
       <div className="p-6">
         <div className="flex gap-5">
           <div className={`w-1.5 rounded-full ${status.dot}`} />
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2 flex-1 cursor-pointer" onClick={() => item.isGroup && setIsExpanded(!isExpanded)}>
+              <div className="flex items-center gap-2 flex-1">
                 <span className="text-2xl">{item.isGroup ? (isExpanded ? <FolderOpen size={24} className="text-blue-500" /> : <Folder size={24} className="text-blue-500" />) : type.icon}</span>
                 <h3 className="font-bold text-base tracking-tight truncate flex items-center gap-2">
                   {item.title}
@@ -643,40 +801,16 @@ function TodayCard({ item, onEdit, onArchive, onRemove, onDelete, onEditChild, o
                     {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                   </button>
                 )}
-                <button 
-                  onClick={onEdit}
-                  className="p-2 text-gray-300 hover:text-black hover:bg-gray-50 rounded-full transition-all"
-                >
-                  <Edit2 size={14} />
-                </button>
-                <button 
-                  onClick={onArchive}
-                  className="p-2 text-gray-300 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all"
-                  title="存入技能庫"
-                >
-                  <Archive size={14} />
-                </button>
-                <button 
-                  onClick={onRemove}
-                  className="p-2 text-gray-300 hover:text-yellow-600 hover:bg-yellow-50 rounded-full transition-all"
-                  title="從今日移除"
-                >
-                  <Star size={14} fill="none" />
-                </button>
-                <button 
-                  onClick={onCopyToLibrary}
-                  className="p-2 text-gray-300 hover:text-blue-500 hover:bg-blue-50 rounded-full transition-all"
-                  title="複製到知識庫"
-                >
-                  <CopyPlus size={14} />
-                </button>
-                <button 
-                  onClick={onDelete}
-                  className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
-                  title="刪除"
-                >
-                  <Trash2 size={14} />
-                </button>
+                <ActionMenu 
+                  actions={[
+                    { label: '編輯內容', icon: <Edit2 size={14} />, onClick: onEdit },
+                    { label: '新增子項目', icon: <Plus size={14} />, onClick: () => onAddSubItem(item.id), color: 'text-green-600' },
+                    { label: '儲存至技能庫', icon: <Archive size={14} />, onClick: onArchive, color: 'text-blue-600' },
+                    { label: item.isToday ? '取消今日標記' : '標記為今日', icon: <Star size={14} />, onClick: onRemove, color: 'text-yellow-600' },
+                    { label: '製作副本到知識庫', icon: <CopyPlus size={14} />, onClick: onCopyToLibrary, color: 'text-indigo-600' },
+                    { label: '刪除項目', icon: <Trash2 size={14} />, onClick: onDelete, color: 'text-red-500' }
+                  ]}
+                />
               </div>
             </div>
 
@@ -710,8 +844,20 @@ function TodayCard({ item, onEdit, onArchive, onRemove, onDelete, onEditChild, o
                   child={child} 
                   onEdit={onEditChild} 
                   onDelete={onDeleteChild} 
+                  onToggleToday={onRemoveChild}
+                  onArchive={onArchiveChild}
+                  onCopyToLibrary={onCopyToLibraryChild}
+                  onCopyToToday={onCopyToTodayChild}
+                  onAddSubItem={onAddSubItem}
                 />
               ))}
+              <button 
+                onClick={() => onAddSubItem(item.id)}
+                className="w-full py-2 border border-dashed border-gray-200 rounded-xl text-[10px] font-bold text-gray-400 hover:border-gray-400 hover:text-gray-600 transition-all flex items-center justify-center gap-2"
+              >
+                <Plus size={12} />
+                新增子項目
+              </button>
             </div>
           </motion.div>
         )}
@@ -720,7 +866,11 @@ function TodayCard({ item, onEdit, onArchive, onRemove, onDelete, onEditChild, o
   );
 }
 
-function LibraryCard({ item, onEdit, onToggleToday, onArchive, onCopyToToday, onCopyToLibrary, onDelete, onEditChild, onDeleteChild, allItems }: { 
+function LibraryCard({ 
+  item, onEdit, onToggleToday, onArchive, onCopyToToday, onCopyToLibrary, onDelete, onAddSubItem,
+  onEditChild, onDeleteChild, onToggleTodayChild, onArchiveChild, onCopyToTodayChild, onCopyToLibraryChild,
+  allItems 
+}: { 
   item: KnowledgeItem, 
   onEdit: () => void,
   onToggleToday: () => void,
@@ -728,8 +878,13 @@ function LibraryCard({ item, onEdit, onToggleToday, onArchive, onCopyToToday, on
   onCopyToToday: () => void,
   onCopyToLibrary: () => void,
   onDelete: () => void,
+  onAddSubItem: (id: string) => void,
   onEditChild: (i: KnowledgeItem) => void,
   onDeleteChild: (id: string) => void,
+  onToggleTodayChild: (id: string) => void,
+  onArchiveChild: (id: string) => void,
+  onCopyToTodayChild: (item: KnowledgeItem) => void,
+  onCopyToLibraryChild: (item: KnowledgeItem) => void,
   allItems: KnowledgeItem[],
   key?: string
 }) {
@@ -739,10 +894,10 @@ function LibraryCard({ item, onEdit, onToggleToday, onArchive, onCopyToToday, on
   const children = allItems.filter(i => i.parentId === item.id);
 
   return (
-    <div className="bg-white border border-gray-100 rounded-[28px] overflow-hidden hover:border-gray-200 transition-all group shadow-sm">
+    <div className="bg-white border border-gray-100 rounded-[28px] hover:border-gray-200 transition-all group shadow-sm">
       <div className="p-4 flex items-center gap-4">
         <div className={`w-1 h-8 rounded-full ${status.dot}`} />
-        <div className="flex-1 min-w-0 flex items-center gap-2 cursor-pointer" onClick={() => item.isGroup && setIsExpanded(!isExpanded)}>
+        <div className="flex-1 min-w-0 flex items-center gap-2">
           <span className="text-xl">
             {item.isGroup ? (isExpanded ? <FolderOpen size={20} className="text-blue-500" /> : <Folder size={20} className="text-blue-500" />) : type.icon}
           </span>
@@ -765,55 +920,23 @@ function LibraryCard({ item, onEdit, onToggleToday, onArchive, onCopyToToday, on
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
           {item.isGroup && (
             <button 
-              onClick={() => setIsExpanded(!isExpanded)}
+              onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }}
               className="p-2 text-gray-400 hover:text-black transition-colors"
             >
               {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
             </button>
           )}
-          <button 
-            onClick={onCopyToToday}
-            className="flex items-center gap-1 px-3 py-1.5 bg-black text-white rounded-xl text-[10px] font-bold hover:scale-105 active:scale-95 transition-all shadow-sm"
-            title="複製到今日專注"
-          >
-            <Copy size={12} />
-          </button>
-          <button 
-            onClick={onCopyToLibrary}
-            className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-xl text-[10px] font-bold hover:scale-105 active:scale-95 transition-all shadow-sm"
-            title="複製到知識庫副本"
-          >
-            <CopyPlus size={12} />
-          </button>
-          <div className="w-[1px] h-4 bg-gray-100 mx-1" />
-          <button 
-            onClick={onToggleToday}
-            className={`p-2 rounded-lg transition-colors ${item.isToday ? 'text-yellow-500 bg-yellow-50' : 'text-gray-400 hover:bg-gray-50'}`}
-            title="切換今日狀態"
-          >
-            <Star size={14} fill={item.isToday ? 'currentColor' : 'none'} />
-          </button>
-          <button 
-            onClick={onArchive}
-            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-            title="存入技能庫"
-          >
-            <Archive size={14} />
-          </button>
-          <button 
-            onClick={onEdit}
-            className="p-2 text-gray-400 hover:text-black hover:bg-gray-50 rounded-lg transition-colors"
-            title="編輯"
-          >
-            <Edit2 size={14} />
-          </button>
-          <button 
-            onClick={onDelete}
-            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-            title="刪除"
-          >
-            <Trash2 size={14} />
-          </button>
+
+          <ActionMenu 
+            actions={[
+              { label: '編輯內容', icon: <Edit2 size={14} />, onClick: onEdit },
+              { label: '新增子項目', icon: <Plus size={14} />, onClick: () => onAddSubItem(item.id), color: 'text-green-600' },
+              { label: '建立副本', icon: <CopyPlus size={14} />, onClick: onCopyToLibrary, color: 'text-indigo-600' },
+              { label: item.isToday ? '移除今日標記' : '加入今日清單', icon: <Star size={14} />, onClick: onToggleToday, color: 'text-yellow-600' },
+              { label: '內化到技能庫', icon: <Archive size={14} />, onClick: onArchive, color: 'text-blue-600' },
+              { label: '刪除項目', icon: <Trash2 size={14} />, onClick: onDelete, color: 'text-red-500' }
+            ]}
+          />
         </div>
       </div>
 
@@ -832,10 +955,29 @@ function LibraryCard({ item, onEdit, onToggleToday, onArchive, onCopyToToday, on
                   child={child} 
                   onEdit={onEditChild} 
                   onDelete={onDeleteChild} 
+                  onToggleToday={onToggleTodayChild}
+                  onArchive={onArchiveChild}
+                  onCopyToToday={onCopyToTodayChild}
+                  onCopyToLibrary={onCopyToLibraryChild}
+                  onAddSubItem={onAddSubItem}
+                  allItems={allItems}
+                  onEditChild={onEditChild}
+                  onDeleteChild={onDeleteChild}
+                  onArchiveChild={onArchiveChild}
+                  onRemoveChild={onToggleTodayChild}
+                  onCopyToLibraryChild={onCopyToLibraryChild}
+                  onCopyToTodayChild={onCopyToTodayChild}
                 />
               )) : (
                 <div className="text-center py-4 text-[10px] text-gray-400 italic">空抽屜</div>
               )}
+              <button 
+                onClick={() => onAddSubItem(item.id)}
+                className="w-full py-2 border border-dashed border-gray-200 rounded-xl text-[10px] font-bold text-gray-400 hover:border-gray-400 hover:text-gray-600 transition-all flex items-center justify-center gap-2"
+              >
+                <Plus size={12} />
+                新增子項目
+              </button>
             </div>
           </motion.div>
         )}
@@ -844,14 +986,21 @@ function LibraryCard({ item, onEdit, onToggleToday, onArchive, onCopyToToday, on
   );
 }
 
-function SkillCard({ item, onEdit, onRestore, onDelete, onCopyToLibrary, onEditChild, onDeleteChild, allItems }: { 
+function SkillCard({ 
+  item, onEdit, onRestore, onDelete, onCopyToLibrary, onAddSubItem,
+  onEditChild, onDeleteChild, onRestoreChild, onCopyToLibraryChild,
+  allItems 
+}: { 
   item: KnowledgeItem, 
   onEdit: () => void,
   onRestore: () => void,
   onDelete: () => void,
   onCopyToLibrary: () => void,
+  onAddSubItem: (id: string) => void,
   onEditChild: (i: KnowledgeItem) => void,
   onDeleteChild: (id: string) => void,
+  onRestoreChild: (id: string) => void,
+  onCopyToLibraryChild: (item: KnowledgeItem) => void,
   allItems: KnowledgeItem[],
   key?: string
 }) {
@@ -860,9 +1009,9 @@ function SkillCard({ item, onEdit, onRestore, onDelete, onCopyToLibrary, onEditC
   const children = allItems.filter(i => i.parentId === item.id);
   
   return (
-    <div className="bg-white border border-gray-200 rounded-3xl overflow-hidden transition-all">
+    <div className="bg-white border border-gray-200 rounded-3xl transition-all">
       <div className="p-5 flex items-center justify-between">
-        <div className="flex items-center gap-4 flex-1 cursor-pointer" onClick={() => item.isGroup && setIsExpanded(!isExpanded)}>
+        <div className="flex items-center gap-4 flex-1">
           <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-xl">
             {item.isGroup ? (isExpanded ? <FolderOpen size={20} className="text-blue-500" /> : <Folder size={20} className="text-blue-500" />) : type.icon}
           </div>
@@ -880,42 +1029,24 @@ function SkillCard({ item, onEdit, onRestore, onDelete, onCopyToLibrary, onEditC
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
           {item.isGroup && (
             <button 
               onClick={() => setIsExpanded(!isExpanded)}
               className="p-2 text-gray-400 hover:text-black transition-colors"
             >
-              {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
             </button>
           )}
-          <button 
-            onClick={onEdit}
-            className="p-1.5 text-gray-300 hover:text-black transition-colors"
-            title="編輯"
-          >
-            <Edit2 size={14} />
-          </button>
-          <button 
-            onClick={onCopyToLibrary}
-            className="p-1.5 text-gray-300 hover:text-blue-500 transition-colors"
-            title="複製到知識庫副本"
-          >
-            <CopyPlus size={14} />
-          </button>
-          <button 
-            onClick={onRestore}
-            className="px-3 py-1.5 text-[10px] font-bold bg-gray-100 hover:bg-black hover:text-white rounded-lg transition-all"
-            title="恢復到今日/知識庫"
-          >
-            恢復
-          </button>
-          <button 
-            onClick={onDelete}
-            className="p-1.5 text-gray-300 hover:text-red-500 transition-colors"
-          >
-            <Trash2 size={14} />
-          </button>
+          <ActionMenu 
+            actions={[
+              { label: '編輯技能', icon: <Edit2 size={14} />, onClick: onEdit },
+              { label: '新增子項目', icon: <Plus size={14} />, onClick: () => onAddSubItem(item.id), color: 'text-green-600' },
+              { label: '恢復至執行中', icon: <Archive size={14} />, onClick: onRestore, color: 'text-blue-600' },
+              { label: '建立副本', icon: <CopyPlus size={14} />, onClick: onCopyToLibrary, color: 'text-indigo-600' },
+              { label: '刪除技能', icon: <Trash2 size={14} />, onClick: onDelete, color: 'text-red-500' }
+            ]}
+          />
         </div>
       </div>
 
@@ -934,8 +1065,23 @@ function SkillCard({ item, onEdit, onRestore, onDelete, onCopyToLibrary, onEditC
                   child={child} 
                   onEdit={onEditChild} 
                   onDelete={onDeleteChild} 
+                  onRestore={onRestoreChild}
+                  onCopyToLibrary={onCopyToLibraryChild}
+                  onAddSubItem={onAddSubItem}
+                  allItems={allItems}
+                  onEditChild={onEditChild}
+                  onDeleteChild={onDeleteChild}
+                  onRestoreChild={onRestoreChild}
+                  onCopyToLibraryChild={onCopyToLibraryChild}
                 />
               ))}
+              <button 
+                onClick={() => onAddSubItem(item.id)}
+                className="w-full py-2 border border-dashed border-gray-200 rounded-xl text-[10px] font-bold text-gray-400 hover:border-gray-400 hover:text-gray-600 transition-all flex items-center justify-center gap-2"
+              >
+                <Plus size={12} />
+                新增子項目
+              </button>
             </div>
           </motion.div>
         )}
