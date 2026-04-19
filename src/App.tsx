@@ -19,7 +19,8 @@ import {
   FolderOpen,
   Copy,
   CopyPlus,
-  MoreVertical
+  MoreVertical,
+  GripVertical
 } from 'lucide-react';
 import { KnowledgeItem, ItemStatus, ItemType, STATUS_CONFIG, TYPE_CONFIG } from './types';
 
@@ -162,6 +163,21 @@ export default function App() {
       parentId: item.parentId || ''
     });
     setIsModalOpen(true);
+  };
+
+  const handleReorderChildren = (newChildrenOrder: KnowledgeItem[]) => {
+    if (newChildrenOrder.length === 0) return;
+    const parentId = newChildrenOrder[0].parentId;
+    const itemsCopy = [...items];
+    const childIndexes = itemsCopy
+      .map((item, index) => item.parentId === parentId ? index : -1)
+      .filter(index => index !== -1)
+      .sort((a, b) => a - b);
+    if (childIndexes.length === 0) return;
+    const firstIndex = childIndexes[0];
+    const filteredItems = itemsCopy.filter(item => item.parentId !== parentId);
+    filteredItems.splice(firstIndex, 0, ...newChildrenOrder);
+    setItems(filteredItems);
   };
 
   const saveItem = () => {
@@ -347,6 +363,7 @@ export default function App() {
                       onCopyToLibraryChild={copyItemToLibrary}
                       onCopyToTodayChild={copyItemToToday}
                       allItems={items}
+                      onReorderChildren={handleReorderChildren}
                     />
                   ))}
                 </Reorder.Group>
@@ -407,6 +424,7 @@ export default function App() {
                     onCopyToTodayChild={copyItemToToday}
                     onCopyToLibraryChild={copyItemToLibrary}
                     allItems={items}
+                    onReorderChildren={handleReorderChildren}
                   />
                 ))}
               </div>
@@ -441,6 +459,7 @@ export default function App() {
                     onRestoreChild={restoreFromSkills}
                     onCopyToLibraryChild={copyItemToLibrary}
                     allItems={items}
+                    onReorderChildren={handleReorderChildren}
                   />
                 )) : (
                   <div className="py-20 text-center text-gray-400 text-sm">
@@ -581,7 +600,8 @@ export default function App() {
 // Helper for child items
 function ChildItemCard({ 
   child, onEdit, onDelete, onToggleToday, onArchive, onRestore, onCopyToLibrary, onCopyToToday, onAddSubItem,
-  allItems, onEditChild, onDeleteChild, onArchiveChild, onRemoveChild, onCopyToLibraryChild, onCopyToTodayChild, onRestoreChild
+  allItems, onEditChild, onDeleteChild, onArchiveChild, onRemoveChild, onCopyToLibraryChild, onCopyToTodayChild, onRestoreChild,
+  onReorderChildren
 }: { 
   child: KnowledgeItem, 
   onEdit: (i: KnowledgeItem) => void, 
@@ -600,6 +620,7 @@ function ChildItemCard({
   onRestoreChild?: (id: string) => void,
   onCopyToLibraryChild?: (item: KnowledgeItem) => void,
   onCopyToTodayChild?: (item: KnowledgeItem) => void,
+  onReorderChildren?: (items: KnowledgeItem[]) => void,
   key?: string
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -617,8 +638,14 @@ function ChildItemCard({
   ];
 
   return (
-    <div className="bg-white border border-gray-100 rounded-2xl shadow-sm transition-all">
+    <Reorder.Item 
+      value={child}
+      className="bg-white border border-gray-100 rounded-2xl shadow-sm transition-all cursor-default"
+    >
       <div className="flex items-center gap-3 p-3 group/child">
+        <div className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-400">
+          <GripVertical size={14} />
+        </div>
         <span className="text-xl">
           {child.isGroup ? (isExpanded ? <FolderOpen size={16} className="text-blue-500" /> : <Folder size={16} className="text-blue-500" />) : TYPE_CONFIG[child.type]?.icon || '📦'}
         </span>
@@ -649,29 +676,59 @@ function ChildItemCard({
             exit={{ height: 0, opacity: 0 }}
             className="bg-gray-50/30 border-t border-gray-50"
           >
-            <div className="p-3 pl-8 space-y-2">
-              {children.map(c => (
-                <ChildItemCard 
-                  key={c.id} 
-                  child={c} 
-                  onEdit={onEditChild || onEdit} 
-                  onDelete={onDeleteChild || onDelete} 
-                  onToggleToday={onRemoveChild || onToggleToday}
-                  onArchive={onArchiveChild || onArchive}
-                  onRestore={onRestoreChild || onRestore}
-                  onCopyToLibrary={onCopyToLibraryChild || onCopyToLibrary}
-                  onCopyToToday={onCopyToTodayChild || onCopyToToday}
-                  onAddSubItem={onAddSubItem}
-                  allItems={allItems}
-                  onEditChild={onEditChild}
-                  onDeleteChild={onDeleteChild}
-                  onArchiveChild={onArchiveChild}
-                  onRemoveChild={onRemoveChild}
-                  onRestoreChild={onRestoreChild}
-                  onCopyToLibraryChild={onCopyToLibraryChild}
-                  onCopyToTodayChild={onCopyToTodayChild}
-                />
-              ))}
+            <div className="p-3 pl-8">
+              {onReorderChildren ? (
+                <Reorder.Group axis="y" values={children} onReorder={onReorderChildren} className="space-y-2 mb-2">
+                  {children.map(c => (
+                    <ChildItemCard 
+                      key={c.id} 
+                      child={c} 
+                      onEdit={onEditChild || onEdit} 
+                      onDelete={onDeleteChild || onDelete} 
+                      onToggleToday={onRemoveChild || onToggleToday}
+                      onArchive={onArchiveChild || onArchive}
+                      onRestore={onRestoreChild || onRestore}
+                      onCopyToLibrary={onCopyToLibraryChild || onCopyToLibrary}
+                      onCopyToToday={onCopyToTodayChild || onCopyToToday}
+                      onAddSubItem={onAddSubItem}
+                      allItems={allItems}
+                      onEditChild={onEditChild}
+                      onDeleteChild={onDeleteChild}
+                      onArchiveChild={onArchiveChild}
+                      onRemoveChild={onRemoveChild}
+                      onRestoreChild={onRestoreChild}
+                      onCopyToLibraryChild={onCopyToLibraryChild}
+                      onCopyToTodayChild={onCopyToTodayChild}
+                      onReorderChildren={onReorderChildren}
+                    />
+                  ))}
+                </Reorder.Group>
+              ) : (
+                <div className="space-y-2 mb-2">
+                  {children.map(c => (
+                    <ChildItemCard 
+                      key={c.id} 
+                      child={c} 
+                      onEdit={onEditChild || onEdit} 
+                      onDelete={onDeleteChild || onDelete} 
+                      onToggleToday={onRemoveChild || onToggleToday}
+                      onArchive={onArchiveChild || onArchive}
+                      onRestore={onRestoreChild || onRestore}
+                      onCopyToLibrary={onCopyToLibraryChild || onCopyToLibrary}
+                      onCopyToToday={onCopyToTodayChild || onCopyToToday}
+                      onAddSubItem={onAddSubItem}
+                      allItems={allItems}
+                      onEditChild={onEditChild}
+                      onDeleteChild={onDeleteChild}
+                      onArchiveChild={onArchiveChild}
+                      onRemoveChild={onRemoveChild}
+                      onRestoreChild={onRestoreChild}
+                      onCopyToLibraryChild={onCopyToLibraryChild}
+                      onCopyToTodayChild={onCopyToTodayChild}
+                    />
+                  ))}
+                </div>
+              )}
               <button 
                 onClick={() => onAddSubItem && onAddSubItem(child.id)}
                 className="w-full py-1.5 border border-dashed border-gray-200 rounded-lg text-[9px] font-bold text-gray-400 hover:border-gray-400 hover:text-gray-600 transition-all flex items-center justify-center gap-1.5"
@@ -683,7 +740,7 @@ function ChildItemCard({
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </Reorder.Item>
   );
 }
 
@@ -745,7 +802,7 @@ function ActionMenu({ actions }: {
 function TodayCard({ 
   item, onEdit, onArchive, onRemove, onDelete, onAddSubItem,
   onEditChild, onDeleteChild, onArchiveChild, onRemoveChild, onCopyToLibraryChild, onCopyToTodayChild,
-  onCopyToLibrary, allItems 
+  onCopyToLibrary, allItems, onReorderChildren 
 }: { 
   item: KnowledgeItem, 
   onEdit: () => void, 
@@ -761,6 +818,7 @@ function TodayCard({
   onCopyToTodayChild: (item: KnowledgeItem) => void,
   onCopyToLibrary: () => void,
   allItems: KnowledgeItem[],
+  onReorderChildren: (items: KnowledgeItem[]) => void,
   key?: string
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -837,20 +895,24 @@ function TodayCard({
             exit={{ height: 0, opacity: 0 }}
             className="bg-gray-50/50 border-t border-gray-100"
           >
-            <div className="p-4 space-y-2">
-              {children.map(child => (
-                <ChildItemCard 
-                  key={child.id} 
-                  child={child} 
-                  onEdit={onEditChild} 
-                  onDelete={onDeleteChild} 
-                  onToggleToday={onRemoveChild}
-                  onArchive={onArchiveChild}
-                  onCopyToLibrary={onCopyToLibraryChild}
-                  onCopyToToday={onCopyToTodayChild}
-                  onAddSubItem={onAddSubItem}
-                />
-              ))}
+            <div className="p-4">
+              <Reorder.Group axis="y" values={children} onReorder={onReorderChildren} className="space-y-2 mb-2">
+                {children.map(child => (
+                  <ChildItemCard 
+                    key={child.id} 
+                    child={child} 
+                    onEdit={onEditChild} 
+                    onDelete={onDeleteChild} 
+                    onToggleToday={onRemoveChild}
+                    onArchive={onArchiveChild}
+                    onCopyToLibrary={onCopyToLibraryChild}
+                    onCopyToToday={onCopyToTodayChild}
+                    onAddSubItem={onAddSubItem}
+                    allItems={allItems}
+                    onReorderChildren={onReorderChildren}
+                  />
+                ))}
+              </Reorder.Group>
               <button 
                 onClick={() => onAddSubItem(item.id)}
                 className="w-full py-2 border border-dashed border-gray-200 rounded-xl text-[10px] font-bold text-gray-400 hover:border-gray-400 hover:text-gray-600 transition-all flex items-center justify-center gap-2"
@@ -869,7 +931,7 @@ function TodayCard({
 function LibraryCard({ 
   item, onEdit, onToggleToday, onArchive, onCopyToToday, onCopyToLibrary, onDelete, onAddSubItem,
   onEditChild, onDeleteChild, onToggleTodayChild, onArchiveChild, onCopyToTodayChild, onCopyToLibraryChild,
-  allItems 
+  allItems, onReorderChildren 
 }: { 
   item: KnowledgeItem, 
   onEdit: () => void,
@@ -886,6 +948,7 @@ function LibraryCard({
   onCopyToTodayChild: (item: KnowledgeItem) => void,
   onCopyToLibraryChild: (item: KnowledgeItem) => void,
   allItems: KnowledgeItem[],
+  onReorderChildren: (items: KnowledgeItem[]) => void,
   key?: string
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -948,28 +1011,33 @@ function LibraryCard({
             exit={{ height: 0, opacity: 0 }}
             className="bg-gray-50/50 border-t border-gray-100"
           >
-            <div className="p-4 space-y-2">
-              {children.length > 0 ? children.map(child => (
-                <ChildItemCard 
-                  key={child.id} 
-                  child={child} 
-                  onEdit={onEditChild} 
-                  onDelete={onDeleteChild} 
-                  onToggleToday={onToggleTodayChild}
-                  onArchive={onArchiveChild}
-                  onCopyToToday={onCopyToTodayChild}
-                  onCopyToLibrary={onCopyToLibraryChild}
-                  onAddSubItem={onAddSubItem}
-                  allItems={allItems}
-                  onEditChild={onEditChild}
-                  onDeleteChild={onDeleteChild}
-                  onArchiveChild={onArchiveChild}
-                  onRemoveChild={onToggleTodayChild}
-                  onCopyToLibraryChild={onCopyToLibraryChild}
-                  onCopyToTodayChild={onCopyToTodayChild}
-                />
-              )) : (
-                <div className="text-center py-4 text-[10px] text-gray-400 italic">空抽屜</div>
+            <div className="p-4">
+              {children.length > 0 ? (
+                <Reorder.Group axis="y" values={children} onReorder={onReorderChildren} className="space-y-2 mb-2">
+                  {children.map(child => (
+                    <ChildItemCard 
+                      key={child.id} 
+                      child={child} 
+                      onEdit={onEditChild} 
+                      onDelete={onDeleteChild} 
+                      onToggleToday={onToggleTodayChild}
+                      onArchive={onArchiveChild}
+                      onCopyToToday={onCopyToTodayChild}
+                      onCopyToLibrary={onCopyToLibraryChild}
+                      onAddSubItem={onAddSubItem}
+                      allItems={allItems}
+                      onEditChild={onEditChild}
+                      onDeleteChild={onDeleteChild}
+                      onArchiveChild={onArchiveChild}
+                      onRemoveChild={onToggleTodayChild}
+                      onCopyToLibraryChild={onCopyToLibraryChild}
+                      onCopyToTodayChild={onCopyToTodayChild}
+                      onReorderChildren={onReorderChildren}
+                    />
+                  ))}
+                </Reorder.Group>
+              ) : (
+                <div className="py-4 text-center text-[10px] text-gray-400 italic mb-2">空抽屜</div>
               )}
               <button 
                 onClick={() => onAddSubItem(item.id)}
@@ -989,7 +1057,7 @@ function LibraryCard({
 function SkillCard({ 
   item, onEdit, onRestore, onDelete, onCopyToLibrary, onAddSubItem,
   onEditChild, onDeleteChild, onRestoreChild, onCopyToLibraryChild,
-  allItems 
+  allItems, onReorderChildren 
 }: { 
   item: KnowledgeItem, 
   onEdit: () => void,
@@ -1002,6 +1070,7 @@ function SkillCard({
   onRestoreChild: (id: string) => void,
   onCopyToLibraryChild: (item: KnowledgeItem) => void,
   allItems: KnowledgeItem[],
+  onReorderChildren: (items: KnowledgeItem[]) => void,
   key?: string
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -1058,23 +1127,26 @@ function SkillCard({
             exit={{ height: 0, opacity: 0 }}
             className="bg-gray-50/50 border-t border-gray-100"
           >
-            <div className="p-4 space-y-2">
-              {children.map(child => (
-                <ChildItemCard 
-                  key={child.id} 
-                  child={child} 
-                  onEdit={onEditChild} 
-                  onDelete={onDeleteChild} 
-                  onRestore={onRestoreChild}
-                  onCopyToLibrary={onCopyToLibraryChild}
-                  onAddSubItem={onAddSubItem}
-                  allItems={allItems}
-                  onEditChild={onEditChild}
-                  onDeleteChild={onDeleteChild}
-                  onRestoreChild={onRestoreChild}
-                  onCopyToLibraryChild={onCopyToLibraryChild}
-                />
-              ))}
+            <div className="p-4">
+              <Reorder.Group axis="y" values={children} onReorder={onReorderChildren} className="space-y-2 mb-2">
+                {children.map(child => (
+                  <ChildItemCard 
+                    key={child.id} 
+                    child={child} 
+                    onEdit={onEditChild} 
+                    onDelete={onDeleteChild} 
+                    onRestore={onRestoreChild}
+                    onCopyToLibrary={onCopyToLibraryChild}
+                    onAddSubItem={onAddSubItem}
+                    allItems={allItems}
+                    onEditChild={onEditChild}
+                    onDeleteChild={onDeleteChild}
+                    onRestoreChild={onRestoreChild}
+                    onCopyToLibraryChild={onCopyToLibraryChild}
+                    onReorderChildren={onReorderChildren}
+                  />
+                ))}
+              </Reorder.Group>
               <button 
                 onClick={() => onAddSubItem(item.id)}
                 className="w-full py-2 border border-dashed border-gray-200 rounded-xl text-[10px] font-bold text-gray-400 hover:border-gray-400 hover:text-gray-600 transition-all flex items-center justify-center gap-2"
