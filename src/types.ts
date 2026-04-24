@@ -1,5 +1,5 @@
 export type ItemStatus = 'applying' | 'reading' | 'solving' | 'idle';
-export type ItemType = 'book' | 'course' | 'gem' | 'skill';
+export type ItemType = 'book' | 'course' | 'gem' | 'skill' | 'prompt';
 
 export interface KnowledgeItem {
   id: string;
@@ -27,4 +27,5 @@ export const TYPE_CONFIG = {
   course: { label: '課程', icon: '🎓' },
   gem: { label: 'GEM', icon: '✨' },
   skill: { label: '技能', icon: '🛠️' },
+  prompt: { label: 'Prompt', icon: '🤖' },
 };
